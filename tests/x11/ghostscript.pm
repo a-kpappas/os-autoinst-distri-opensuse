@@ -77,6 +77,7 @@ sub run {
     if (!$gv_missing) {
         script_run "gv $reference", 0;
         assert_screen "ghostview_alphabet";
+        record_soft_failure("Known issue bsc#1158907");
 
         # close gv
         send_key "alt-f4";
