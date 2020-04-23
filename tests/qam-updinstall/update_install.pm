@@ -18,6 +18,7 @@
 #
 # Maintainer: Ondřej Súkup <osukup@suse.cz>
 
+use XML::Parser;
 use base "opensusebasetest";
 
 use strict;
