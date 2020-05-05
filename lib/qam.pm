@@ -17,11 +17,11 @@ use Exporter;
 
 use testapi;
 use utils;
-use List::Util 'max';
+use List::Util qw(max first);
 use version_utils 'is_sle';
 
 our @EXPORT
-  = qw(capture_state check_automounter is_patch_needed add_test_repositories ssh_add_test_repositories remove_test_repositories advance_installer_window get_patches check_patch_variables);
+  = qw(capture_state check_automounter is_patch_needed add_test_repositories ssh_add_test_repositories remove_test_repositories advance_installer_window get_patches check_patch_variables query_smelt  get_packages_in_MR get_bins_for_packageXmodule);
 
 use constant ZYPPER_PACKAGE_COL    => 1;
 use constant OLD_ZYPPER_STATUS_COL => 4;
@@ -175,5 +175,40 @@ sub check_patch_variables {
         die("Missing INCIDENT_PATCH or INCIDENT_ID");
     }
 }
+
+sub query_smelt {
+    my $graphql = $_[0];
+    my $api_url = "--request POST https://smelt.suse.de/graphql/";
+    my $header = '--header "Content-Type: application/json"';
+    my $data = qq( --data '{"query": "$graphql"}');
+    return  qx(curl $api_url $header $data 2>/dev/null );
+}
+
+sub get_packages_in_MR{
+    my $mr= $_[0] ;
+    my $gql_query = "{incidents(incidentId: $mr){edges{node{incidentpackagesSet{edges{node{package{name}}}}}}}}";
+    my $graph = JSON->new->utf8->decode( query_smelt($gql_query));
+    my @nodes= @{$graph->{'data'}{'incidents'}{'edges'}[0]{'node'}{'incidentpackagesSet'}{'edges'}};
+    my @packages = map { $_->{'node'}{'package'}{'name'} } @nodes;
+    return @packages;
+}
+
+sub get_bins_for_packageXmodule{
+    (my $package, my $module_ref) = ($_[0], $_[1]);
+    my $response = qx(curl "https://smelt.suse.de/api/v1/basic/maintained/$package/" 2>/dev/null);
+    my $graph = JSON->new->utf8->decode($response);
+    my @bins;
+    foreach my $m (@{$module_ref}) {
+        if ( exists( $graph->{$m})) {
+            my @keys = keys % {$graph->{$m}};
+            my $upd_key = first {m/Update\b/} @keys;
+            push (@bins, @{$graph->{$m}{$upd_key}});
+        }
+    }
+    print Dumper(@bins);
+    return @bins;
+}
+
+
 
 1;

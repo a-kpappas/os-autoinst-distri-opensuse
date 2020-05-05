@@ -18,11 +18,12 @@
 #
 # Maintainer: Ondřej Súkup <osukup@suse.cz>
 
-use XML::Parser;
+
 use base "opensusebasetest";
 
 use strict;
 use warnings;
+use List::Util qw(reduce);
 
 use utils;
 use power_action_utils qw(prepare_system_shutdown power_action);
@@ -30,41 +31,15 @@ use power_action_utils qw(prepare_system_shutdown power_action);
 use qam;
 use testapi;
 
-sub install_packages {
-    my $patch_info = shift;
-    my $pattern    = qr/\s+(.+)(?!\.(src|nosrc))\..*\s<\s.*/;
-
-    # loop over packages in patchinfo and try installation
-    foreach my $line (split(/\n/, $patch_info)) {
-        if (my ($package) = $line =~ $pattern and $1 !~ /-devel$|-patch-/) {
-            # uninstall conflicting packages to allow problemless install
-            my %conflict = (
-                'reiserfs-kmp-default'   => 'kernel-default-base',
-                'kernel-default'         => 'kernel-default-base',
-                'kernel-default-extra'   => 'kernel-default-base',
-                'kernel-default-base'    => 'kernel-default',
-                'kernel-azure'           => 'kernel-azure-base',
-                'kernel-azure-base'      => 'kernel-azure',
-                'kernel-rt'              => 'kernel-rt-base',
-                'kernel-rt-base'         => 'kernel-rt',
-                'kernel-xen'             => 'kernel-xen-base',
-                'kernel-xen-base'        => 'kernel-xen',
-                'xen-tools'              => 'xen-tools-domU',
-                'xen-tools-domU'         => 'xen-tools',
-                'p11-kit-nss-trust'      => 'mozilla-nss-certs',
-                'rmt-server-config'      => 'rmt-server-pubcloud',
-                'cluster-md-kmp-default' => 'kernel-default-base',
-                'dlm-kmp-default'        => 'kernel-default-base',
-                'gfs2-kmp-default'       => 'kernel-default-base',
-                'ocfs2-kmp-default'      => 'kernel-default-base'
-            );
-            zypper_call("rm $conflict{$package}", exitcode => [0, 104]) if $conflict{$package};
-            # go to next package if it's not provided by repos
-            record_info('Not present', "$package is added in patch") && next if (script_run("zypper -n se -t package -x $package") == 104);
-            # install package
-            zypper_call("in -l $package", timeout => 1500, exitcode => [0, 102, 103]);
-            save_screenshot;
-        }
+sub resolve_conflicts {
+    my $pack_ref = $_[0];
+    my %conflict = (
+        'p11-kit-nss-trust'      => 'mozilla-nss-certs',
+        'mozilla-nss-certs'      => 'p11-kit-nss-trust',
+        'rmt-server-config'      => 'rmt-server-pubcloud'
+    );
+    foreach (@{$pack_ref}){
+        zypper_call("rm $conflict{$package}", exitcode => [0, 104]) if exists($conflict{$package}); 
     }
 }
 
@@ -72,6 +47,7 @@ sub get_patch {
     my ($incident_id, $repos) = @_;
     $repos =~ tr/,/ /;
     my $patches = script_output("zypper patches -r $repos | awk -F '|' '/$incident_id/ { printf \$2 }'", type_command => 1);
+    save_screenshot;
     $patches =~ s/\r//g;
     return $patches;
 }
@@ -89,28 +65,54 @@ sub change_repos_state {
 
 sub run {
     my ($self)      = @_;
+    select_console 'root-console';
+    #Deactivate nVIDIA repos.
+    zypper_call(q{mr -d $(zypper lr | awk -F '|' '/NVIDIA/ {print $2}')}, exitcode => [0, 3]);
+    fully_patch_system;
     my $incident_id = get_required_var('INCIDENT_ID');
     my $repos       = get_required_var('INCIDENT_REPO');
+    #Get binaries to be installed.
+    #1. Query SMELT for the main package of the Maintenance Request
+    my @packages = get_packages_in_MR($incident_id);
+    #2. Extract module names for supplied repos.
+    my @modules;
+    foreach ( split(/,/,get_required_var('INCIDENT_REPO'))){
+        if ($_=~ m{SUSE_Updates_(?<product>.*)/}){
+            push(@modules, $+{product});
+        }
+    }
+    #3. Query SMELT for name and maintenance status of binaries associated with the package
+    @binaries
+    foreach (@packages){
+        push( @binaries, get_bins_for_packageXmodule($_,\@modules));
+    }
+    #4. Sort them according to maintenance status.
+    my @l2 = grep{ $_->{'supportstatus'} eq 'l2' } @binaries;
+    my @l3 = grep{ $_->{'supportstatus'} eq 'l3' } @binaries;
 
-    select_console 'root-console';
+    #5. Prepare the update by installing existing packages.
+    my @new_binaries; # Binaries introduced by the update.
+    my @existing_binaries; # Binaries in the released repos.
+    foreach (@l2,@l3) {
+        my $ref = zypper_search('--match-exact '. $_->{'name'});
+        push(@existing_binaries, $_->'name') if (scalar @{$ref});
+        push(@new_binaries, $_->'name') unless (scalar @{$ref});
+        #        $_->{old_version} = 
+    }
+    #5.a) Remove conflicting packages.
+    resolve_conflicts(\@existing_binaries);
+    my $zypper_status = zypper_call("in -l @existing_binaries", timeout => 1500, exitcode => [0, 102, 103],log=>'prepare.log');
+    if ($zypper_status == 102){
+        prepare_system_shutdown;
+        power_action("reboot");
+        $self->wait_boot(bootloader_time => 200);
+    }
 
-    zypper_call(q{mr -d $(zypper lr | awk -F '|' '/NVIDIA/ {print $2}')}, exitcode => [0, 3]);
-
-    fully_patch_system;
 
     set_var('MAINT_TEST_REPO', $repos);
     add_test_repositories;
-
     my $patches = get_patch($incident_id, $repos);
-
     my $patch_infos = get_patchinfos($patches);
-
-    change_repos_state($repos, 'disable');
-
-    install_packages($patch_infos);
-
-    change_repos_state($repos, 'enable');
-
     zypper_call("in -l -t patch ${patches}", exitcode => [0, 102, 103], log => 'zypper.log', timeout => 1500);
 
     prepare_system_shutdown;
