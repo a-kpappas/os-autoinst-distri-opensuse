@@ -194,21 +194,26 @@ sub get_packages_in_MR{
 }
 
 sub get_bins_for_packageXmodule{
+    # This function uses the term package in the way that SMELT uses it. Not as
+    # an rpm but as a set of binaries that receive varying levels of support and are
+    # spread through modules.
     (my $package, my $module_ref) = ($_[0], $_[1]);
     my $response = qx(curl "https://smelt.suse.de/api/v1/basic/maintained/$package/" 2>/dev/null);
     my $graph = JSON->new->utf8->decode($response);
-    my @bins;
-    foreach my $m (@{$module_ref}) {
-        if ( exists( $graph->{$m})) {
-            my @keys = keys % {$graph->{$m}};
-            my $upd_key = first {m/Update\b/} @keys;
-            push (@bins, @{$graph->{$m}{$upd_key}});
-        }
+    # Get the modules to which this package provides binaries.
+    my @existing_modules = grep{ exists( $graph->{$_}) } @{$module_ref};
+    my @arr;
+    foreach my $m (@existing_modules) {
+        # The refs point to a hash of hashes. We only care about the value with
+        # the codestream key. The Update key is different for every SLE
+        # Codestream so instead of maintaining a LUT we just use a regex for it.
+        my $upd_key = first {m/Update\b/} keys % {$graph->{$m}};
+        push (@arr, @{$graph->{$m}{$upd_key}});
     }
-    print Dumper(@bins);
-    return @bins;
+    # Return a hash of hashes, hashed by name. The values are hashes with the keys 'name', 'supportstatus' and
+    # 'package'.
+    return  map { $_->{'name'} => $_ } @arr;
 }
-
 
 
 1;
