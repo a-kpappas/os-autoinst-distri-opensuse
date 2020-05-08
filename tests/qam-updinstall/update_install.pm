@@ -39,7 +39,7 @@ sub resolve_conflicts {
         'rmt-server-config'      => 'rmt-server-pubcloud'
     );
     foreach (@{$pack_ref}){
-        zypper_call("rm $conflict{$package}", exitcode => [0, 104]) if exists($conflict{$package}); 
+        zypper_call("rm $conflict{$_}", exitcode => [0, 104]) if exists($conflict{$_}); 
     }
 }
 
@@ -83,7 +83,7 @@ sub run {
         }
     }
     #1.c) Query SMELT for name and maintenance status of binaries associated with the package
-    my %binaries
+    my %binaries;
     foreach (@packages){
         %binaries = ( %binaries, get_bins_for_packageXmodule($_,\@modules));
     }
@@ -94,7 +94,7 @@ sub run {
     my @new_binaries; 
     my @existing_binaries;
     foreach (@l2,@l3) {
-        my $ref = zypper_search('--match-exact '. );
+        my $ref = zypper_search('--match-exact '. $_ );
         push(@existing_binaries, $_) if (scalar @{$ref});
         push(@new_binaries, $_) unless (scalar @{$ref});
     }
@@ -107,7 +107,6 @@ sub run {
         power_action("reboot");
         $self->wait_boot(bootloader_time => 200);
     }
-
     set_var('MAINT_TEST_REPO', $repos);
     add_test_repositories;
     my $patches = get_patch($incident_id, $repos);
