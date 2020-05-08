@@ -30,7 +30,7 @@ use power_action_utils qw(prepare_system_shutdown power_action);
 
 use qam;
 use testapi;
-
+use JSON;
 sub resolve_conflicts {
     my $pack_ref = $_[0];
     my %conflict = (
