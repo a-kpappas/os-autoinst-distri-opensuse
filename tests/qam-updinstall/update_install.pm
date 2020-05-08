@@ -64,6 +64,7 @@ sub change_repos_state {
 }
 
 sub run {
+    #0. Initialize system.
     my ($self)      = @_;
     select_console 'root-console';
     #Deactivate nVIDIA repos.
@@ -71,36 +72,35 @@ sub run {
     fully_patch_system;
     my $incident_id = get_required_var('INCIDENT_ID');
     my $repos       = get_required_var('INCIDENT_REPO');
-    #Get binaries to be installed.
-    #1. Query SMELT for the main package of the Maintenance Request
+    #1. Find  binaries to be installed.
+    #1.a) Query SMELT for the main package of the Maintenance Request
     my @packages = get_packages_in_MR($incident_id);
-    #2. Extract module names for supplied repos.
+    #1.b) Extract module names for supplied repos.
     my @modules;
     foreach ( split(/,/,get_required_var('INCIDENT_REPO'))){
         if ($_=~ m{SUSE_Updates_(?<product>.*)/}){
             push(@modules, $+{product});
         }
     }
-    #3. Query SMELT for name and maintenance status of binaries associated with the package
-    @binaries
+    #1.c) Query SMELT for name and maintenance status of binaries associated with the package
+    my %binaries
     foreach (@packages){
-        push( @binaries, get_bins_for_packageXmodule($_,\@modules));
+        %binaries = ( %binaries, get_bins_for_packageXmodule($_,\@modules));
     }
-    #4. Sort them according to maintenance status.
-    my @l2 = grep{ $_->{'supportstatus'} eq 'l2' } @binaries;
-    my @l3 = grep{ $_->{'supportstatus'} eq 'l3' } @binaries;
-
-    #5. Prepare the update by installing existing packages.
-    my @new_binaries; # Binaries introduced by the update.
-    my @existing_binaries; # Binaries in the released repos.
+    #1.d Seperate them according to maintenance status. Ignore unsupported.
+    my @l2 = grep{ ($binaries{$_}->{'supportstatus'} eq 'l2') } keys %binaries; 
+    my @l3 = grep{ ($binaries{$_}->{'supportstatus'} eq 'l3') } keys %binaries;
+    #1.e Seperate binaries that existed before the update and ones introduced by it.
+    my @new_binaries; 
+    my @existing_binaries;
     foreach (@l2,@l3) {
-        my $ref = zypper_search('--match-exact '. $_->{'name'});
-        push(@existing_binaries, $_->'name') if (scalar @{$ref});
-        push(@new_binaries, $_->'name') unless (scalar @{$ref});
-        #        $_->{old_version} = 
+        my $ref = zypper_search('--match-exact '. );
+        push(@existing_binaries, $_) if (scalar @{$ref});
+        push(@new_binaries, $_) unless (scalar @{$ref});
     }
-    #5.a) Remove conflicting packages.
+    #1.f) Remove conflicting binaries.
     resolve_conflicts(\@existing_binaries);
+    #1.g) Install the existing package
     my $zypper_status = zypper_call("in -l @existing_binaries", timeout => 1500, exitcode => [0, 102, 103],log=>'prepare.log');
     if ($zypper_status == 102){
         prepare_system_shutdown;
@@ -108,13 +108,11 @@ sub run {
         $self->wait_boot(bootloader_time => 200);
     }
 
-
     set_var('MAINT_TEST_REPO', $repos);
     add_test_repositories;
     my $patches = get_patch($incident_id, $repos);
     my $patch_infos = get_patchinfos($patches);
     zypper_call("in -l -t patch ${patches}", exitcode => [0, 102, 103], log => 'zypper.log', timeout => 1500);
-
     prepare_system_shutdown;
     power_action("reboot");
     $self->wait_boot(bootloader_time => 200);
