@@ -47,12 +47,18 @@ sub run {
 
     assert_script_run('! ras-mc-ctl --status');
 
+    if (script_run('test -e /var/lib/rasdaemon/ras-mc_event.db')){
+        record_info('BEFORE','ras-mc_event.db was not created.');
+    }
     # Try to start rasdaemon. May need a restart on aarch64.
     systemctl('start rasdaemon');
+    if (script_run('test -e /var/lib/rasdaemon/ras-mc_event.db')){
+        record_info('AFTER','ras-mc_event.db was not created.');
+    }
 
     if (systemctl('is-active rasdaemon', ignore_failure => 1)) {
         systemctl('restart rasdaemon');
-        record_soft_failure('poo#66424 rasdaemon service needed to be restarted.');
+        record_info('restart','poo#66424 rasdaemon service needed to be restarted.');
         script_retry("systemctl is-active rasdaemon", retry => 9, timeout => 10, delay => 1);
     }
 
