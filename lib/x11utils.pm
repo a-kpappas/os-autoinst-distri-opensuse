@@ -364,7 +364,7 @@ Turns off the Plasma desktop screenlocker.
 =cut
 sub turn_off_plasma_screenlocker {
     x11_start_program('kcmshell5 screenlocker', target_match => [qw(kde-screenlock-enabled screenlock-disabled)]);
-    assert_and_click 'kde-disable-screenlock' if match_has_tag('kde-screenlock-enabled');
+    die 'WHY IS THIS HAPPENING?' if match_has_tag 'kde-screenlock-enabled';
     assert_screen 'screenlock-disabled';
     # Was 'alt-o' before, but does not work in Plasma 5.17 due to kde#411758
     send_key 'ctrl-ret';
