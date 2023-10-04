@@ -68,6 +68,7 @@
       <li><a href="#package_version_cmp">package_version_cmp</a></li>
       <li><a href="#is_quarterly_iso">is_quarterly_iso</a></li>
       <li><a href="#get_version_id">get_version_id</a></li>
+      <li><a href="#is_community_jeos">is_community_jeos</a></li>
     </ul>
   </li>
   <li><a href="#POD-ERRORS">POD ERRORS</a></li>
@@ -336,6 +337,10 @@
 <p>Get SLES version from VERSION_ID in /etc/os-release. This subroutine also supports performing query on remote machine if dst_machine is given specific ip address or fqdn text of the remote machine. If <code>dst_machine</code> is given it will run on the remote as <b>root</b>. To run it as another user, <code>dst_machine</code> can be also specified as [user@]hostname.</p>
 
 <p>The default location that contains VERSION_ID is file /etc/os-release if nothing else is passed in to argument verid_file.</p>
+
+<h2 id="is_community_jeos">is_community_jeos</h2>
+
+<p>Returns true for tests using the images built by the &quot;JeOS&quot; package on OBS</p>
 
 <h1 id="POD-ERRORS">POD ERRORS</h1>
 
