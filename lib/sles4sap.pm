@@ -576,7 +576,8 @@ sub test_forkbomb {
     my $script = 'forkbomb.pl';
     assert_script_run "curl -f -v " . autoinst_url . "/data/sles4sap/$script -o /tmp/$script; chmod +x /tmp/$script";
     # The systemd-run command generates syslog output that may end up in the console, so save the output to a file
-    assert_script_run "systemd-run --slice user -qt su - $sapadmin -c /tmp/$script | tr -d '\\r' > /tmp/user-procs", 600;
+    my $forkbomb_timeout = get_var('FORKBOMB_TIMEOUT', 3600);
+    assert_script_run "systemd-run --slice user -qt su - $sapadmin -c /tmp/$script | tr -d '\\r' > /tmp/user-procs", $forkbomb_timeout;
     my $user_procs = script_output "cat /tmp/user-procs";
     my $root_procs = script_output "/tmp/$script", 600;
     # Check that the SIDadm user can create at least 99% of the processes root could create
