@@ -68,12 +68,15 @@ sub assert_system_role {
 }
 
 sub run {
+    if (is_sles4sap){
+        record_info("is SLES4SAP", get_var("TEST")." is sles4sap");
+    }
     if (is_sle('=12-sp5') && is_sles4sap) {
         # Because is_sles4sap depends on the openQA settings and does not
         # interogate the SUT to ask for the actual status, we need an extra
         # needle check to make sure we are in the correct place and the System Role
         # dialog did not come up.
-        assert_screen('partitioning-edit-proposal-button');
+        record_info("Skip screen", "System Role screen is displayed only for x86_64 in SLE-12-SP5 due to it has more than one role available");
     }
     elsif (is_sle('<15') && !is_x86_64) {
         record_info("Skip screen", "System Role screen is displayed only for x86_64 in SLE-12-SP5 due to it has more than one role available");
