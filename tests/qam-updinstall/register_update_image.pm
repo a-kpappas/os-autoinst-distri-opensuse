@@ -38,6 +38,9 @@ sub get_included_products
     elsif (is_sle('=15-SP5') or is_sle('=15-SP6')) {
         return "base,serverapp,ha,sapapp,python3";    # Desktop applications intentionally left out.
     }
+    elsif (is_sle('=12-SP5')){
+        assert_script_run ('SUSEConnect -l');
+    }
     else {
         die "Code under construction!";
     }
