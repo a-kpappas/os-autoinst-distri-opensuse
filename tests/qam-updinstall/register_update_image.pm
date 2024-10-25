@@ -12,6 +12,7 @@ use base "opensusebasetest";
 use testapi;
 use serial_terminal 'select_serial_terminal';
 use version_utils qw(is_sles4sap is_sle);
+use suseconnect_register;
 
 use Data::Printer;
 
@@ -59,16 +60,18 @@ sub run {
     # Register the base product.
     assert_script_run("SUSEConnect -r $base_product_key");
 
-    my $version_id = get_required_var('VERSION');
-    $version_id =~ s/-SP/./;
-    my $cpu = get_required_var('ARCH');
-    my @unregistered_addons = split(',', get_required_var("SCC_ADDONS"));
-    p @unregistered_addons;
-    my @addons_to_register = grep { not(get_included_products =~ /$_/) } @unregistered_addons;
-    p @addons_to_register;
-    foreach my $addon (@addons_to_register) {
-        assert_script_run("SUSEConnect -p $addon_name{$addon}/$version_id/$cpu");
-    }
+    suseconnect_registration;
+
+    # my $version_id = get_required_var('VERSION');
+    # $version_id =~ s/-SP/./;
+    # my $cpu = get_required_var('ARCH');
+    # my @unregistered_addons = split(',', get_required_var("SCC_ADDONS"));
+    # p @unregistered_addons;
+    # my @addons_to_register = grep { not(get_included_products =~ /$_/) } @unregistered_addons;
+    # p @addons_to_register;
+    # foreach my $addon (@addons_to_register) {
+    #     assert_script_run("SUSEConnect -p $addon_name{$addon}/$version_id/$cpu");
+    # }
 }
 
 1;
