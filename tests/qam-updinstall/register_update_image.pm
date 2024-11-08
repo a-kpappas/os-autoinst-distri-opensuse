@@ -40,6 +40,7 @@ sub run {
         $base_product_key = get_required_var("SCC_REGCODE");
     }
 
+
     select_serial_terminal;
 
     # Register the base product.
@@ -48,6 +49,10 @@ sub run {
     my $version_id = get_required_var('VERSION');
     $version_id =~ s/-SP/./;
     my $cpu = get_required_var('ARCH');
+    if (is_sle '=12-SP5') {
+        my $ltss_key = get_required_var("SCC_REGCODE_LTSS");
+        assert_script_run("SUSEConnect -p SLES-LTSS/12.5/$cpu -r $ltss_key");
+    }
     my @unregistered_addons = split(',', get_required_var("SCC_ADDONS"));
     my @addons_to_register = grep { not(get_included_products =~ /$_/) } @unregistered_addons;
     foreach my $addon (@addons_to_register) {
