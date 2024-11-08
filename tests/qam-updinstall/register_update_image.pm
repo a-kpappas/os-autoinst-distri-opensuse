@@ -14,8 +14,6 @@ use serial_terminal 'select_serial_terminal';
 use version_utils qw(is_sles4sap is_sle);
 use registration qw (get_addon_fullname);
 
-
-
 sub get_included_products
 {
     die "Code under construction" if not is_sles4sap;
@@ -41,6 +39,7 @@ sub run {
     else {
         $base_product_key = get_required_var("SCC_REGCODE");
     }
+
     select_serial_terminal;
 
     # Register the base product.
@@ -53,6 +52,7 @@ sub run {
     my @addons_to_register = grep { not(get_included_products =~ /$_/) } @unregistered_addons;
     foreach my $addon (@addons_to_register) {
         my $addon_name = get_addon_fullname($addon);
+        die "Invalid addon name. Check if SCC_ADDONS var is set correctly." unless (defined $addon_name);
         assert_script_run("SUSEConnect -p $addon_name/$version_id/$cpu");
     }
 }
