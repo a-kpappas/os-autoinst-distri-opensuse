@@ -18,21 +18,26 @@ use registration qw (get_addon_fullname);
 # Returns a string containing the addons that are added to the system when the base product is registered
 sub get_included_products
 {
-    die "Code under construction" if not is_sles4sap;
+    my $flavor =  get_var("FLAVOR");
+    unless ( $flavor =~ /SAP-Incidents-Install/ or $flavor =~ /HA-Incidents-Install/){
+        die "This module might be scheduled for the wrong product";
+    }
     if (is_sle('=15-SP2') or is_sle('=15-SP3') or is_sle('=15-SP4')) {
-        return "base,serverapp,ha,sapapp,desktop";
+        return "base,serverapp,ha,sapapp,desktop" if is_sles4sap;
+        die "Product unsupported";
     }
     elsif (is_sle('=15-SP5') or is_sle('=15-SP6')) {
-        return "base,serverapp,ha,sapapp,python3,desktop";
+        return "base,serverapp,ha,sapapp,python3,desktop" if is_sles4sap;
+        return "base,serverapp,python3";
     }
     elsif (is_sle('=12-SP5')) {
-        return "";
+        return "" if is_sles4sap;
+        die "Product unsupported";
     }
     else {
-        die "Code under construction!";
+        die "This module might be scheduled for the wrong product";
     }
 }
-
 
 sub run {
     select_serial_terminal;
