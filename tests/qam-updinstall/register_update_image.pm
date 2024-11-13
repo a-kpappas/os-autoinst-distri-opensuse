@@ -18,8 +18,8 @@ use registration qw (get_addon_fullname);
 # Returns a string containing the addons that are added to the system when the base product is registered
 sub get_included_products
 {
-    my $flavor =  get_var("FLAVOR");
-    unless ( $flavor =~ /SAP-Incidents-Install/ or $flavor =~ /HA-Incidents-Install/){
+    my $flavor = get_var("FLAVOR");
+    unless ($flavor =~ /SAP-Incidents-Install/ or $flavor =~ /HA-Incidents-Install/) {
         die "This module might be scheduled for the wrong product";
     }
     if (is_sle('=15-SP2') or is_sle('=15-SP3') or is_sle('=15-SP4')) {
@@ -70,12 +70,19 @@ sub run {
     my $scc_addons = get_required_var('SCC_ADDONS');
 
     # All products need LTSS for 12-SP5.
-    if (is_sle '=12-SP5'){
+    if (is_sle '=12-SP5') {
         my $ltss_key = get_required_var("SCC_REGCODE_LTSS");
         assert_script_run("SUSEConnect -p SLES-LTSS/12.5/$cpu -r $ltss_key");
         $scc_addons = s/ltss[,]?//;
     }
 
+    my $flavor = get_required_var("FLAVOR");
+    if ($flavor =~ /HA-Incidents-Install/) {
+        # sle-ha needs a seperate key if installed on vanilla SLES.
+        my $ha_key = get_required_var("SCC_REGCODE_HA");
+        assert_script_run("SUSEConnect -p sle-ha/$version_id/$cpu -r $ha_key");
+        $scc_addons = s/ha[,]?//;
+    }
 
     # Do not add PackageHub if the update package is qemu. There is a known
     # conflict and PackageHub is not supported.
@@ -83,7 +90,7 @@ sub run {
         record_info('No PackageHub', 'known conflict on qemu update with phub repo poo#162704');
         $scc_addons = s/phub[,]?//;
     }
-    
+
     my @unregistered_addons = split(',', $scc_addons);
 
     # Remove already registered addons from the list of addons to register to save on typing.
