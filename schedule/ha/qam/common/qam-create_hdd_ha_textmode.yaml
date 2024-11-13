@@ -25,6 +25,7 @@ schedule:
   - installation/grub_test
   - installation/first_boot
   - console/system_prepare
+  - '{{scc_deregister}}'
   - '{{patch_and_reboot_inci}}'
   - '{{patch_and_reboot_test_repo}}'
   - console/hostname
@@ -50,3 +51,7 @@ conditional_schedule:
     QAM_INCI:
       1:
         - installation/add_update_test_repo
+  scc_deregister:
+    SCC_DEREGISTER:
+      1:
+        - console/scc_deregistration
