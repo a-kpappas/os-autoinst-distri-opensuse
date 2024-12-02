@@ -73,7 +73,7 @@ sub run {
     if (is_sle '=12-SP5') {
         my $ltss_key = get_required_var("SCC_REGCODE_LTSS");
         assert_script_run("SUSEConnect -p SLES-LTSS/12.5/$cpu -r $ltss_key");
-        $scc_addons = s/ltss[,]?//;
+        $scc_addons =~ s/ltss[,]?//;
     }
 
     my $flavor = get_required_var("FLAVOR");
@@ -81,14 +81,14 @@ sub run {
         # sle-ha needs a seperate key if installed on vanilla SLES.
         my $ha_key = get_required_var("SCC_REGCODE_HA");
         assert_script_run("SUSEConnect -p sle-ha/$version_id/$cpu -r $ha_key");
-        $scc_addons = s/ha[,]?//;
+        $scc_addons =~ s/ha[,]?//;
     }
 
     # Do not add PackageHub if the update package is qemu. There is a known
     # conflict and PackageHub is not supported.
     if (get_var('BUILD') =~ /qemu/ && get_var('INCIDENT_REPO') !~ /Packagehub-Subpackages/) {
         record_info('No PackageHub', 'known conflict on qemu update with phub repo poo#162704');
-        $scc_addons = s/phub[,]?//;
+        $scc_addons =~ s/phub[,]?//;
     }
 
     my @unregistered_addons = split(',', $scc_addons);
