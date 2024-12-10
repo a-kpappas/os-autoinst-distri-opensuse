@@ -98,14 +98,19 @@ sub run {
     $version_id =~ s/-SP/./;
     my $cpu = get_required_var('ARCH');
 
-
     my $scc_addons = get_required_var('SCC_ADDONS');
 
-    # All products need LTSS for 12-SP5.
     if (is_sle '=12-SP5') {
+        # All products need LTSS-ES for 12-SP5.
         my $ltss_key = get_required_var("SCC_REGCODE_LTSS");
         assert_script_run("SUSEConnect -p SLES-LTSS/12.5/$cpu -r $ltss_key");
         $scc_addons =~ s/ltss[,]?//;
+
+        if ($scc_addons =~ /we/) {
+            my $we_key = get_required_var('SCC_REGCODE_WE');
+            assert_script_run("SUSEConnect -p sle-we/12.5/$cpu -r $we_key");
+            $scc_addons =~ s/we[,]?//;
+        }
     }
 
     my $flavor = get_required_var("FLAVOR");
