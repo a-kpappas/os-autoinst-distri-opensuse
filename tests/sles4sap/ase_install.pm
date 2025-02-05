@@ -44,8 +44,15 @@ sub prepare_system_for_ase {
     record_info 'kernel.randomize_va_space', script_output('sysctl kernel.randomize_va_space', proceed_on_failure => 1);
     assert_script_run "mkdir -p $args{target}";
 
-    # wget is currently not in the default install of SLE16.
-    zypper_call("in wget") if (is_sle('16+'));
+    if (is_sle('16+')){
+        # wget is currently not in the default install of SLE16.
+        zypper_call("in wget");
+
+        # libnsl is not in the current SLE16 builds;
+        assert_script_run 'wget --no-check-certificate https://updates.suse.de/SUSE/Updates/SLE-Module-Basesystem/15-SP6/x86_64/update/x86_64/libnsl1-2.38-150600.14.5.1.x86_64.rpm'; 
+        zypper_call("in libnsl1-2.38-150600.14.5.1.x86_64.rpm ");
+    }
+    
 }
 
 =head2 download_ase_assets
