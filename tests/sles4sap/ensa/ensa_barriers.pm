@@ -24,6 +24,7 @@ sub create_general_ha_barriers {
     barrier_create("CLUSTER_INITIALIZED_$cluster_name", $num_nodes);
     barrier_create("NODE_JOINED_$cluster_name", $num_nodes);
     barrier_create("NW_CLUSTER_HOSTS_$cluster_name", $num_nodes);
+    barrier_create("NFS_SERVER_READY", $num_nodes+1);
     barrier_create("NFS_MOUNTS_READY_$cluster_name", $num_nodes);
     barrier_create("LOGS_CHECKED_$cluster_name", $num_nodes);
 }

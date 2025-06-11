@@ -6,7 +6,7 @@ schedule:
     - '{{sle_os_boot}}'
     - '{{alp_boot}}'
     - '{{scc_slem}}'
-    - security/selinux/selinux_setup
+    - sles4sap/configure_selinux_policy
     - security/selinux/sestatus
     - '{{sle_os_tests}}'
     - security/selinux/semanage_fcontext
