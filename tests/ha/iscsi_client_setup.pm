@@ -18,7 +18,6 @@ use serial_terminal qw(select_serial_terminal);
 use version_utils qw(is_sle package_version_cmp);
 
 sub run {
-    return record_info('Skip iscsi_client_setup', 'Module skipped on older versions of SLES. Use ha/iscsi_client instead') if (is_sle('<16'));
     my $iscsi_server = get_var('USE_SUPPORT_SERVER') ? 'ns' : get_required_var('ISCSI_SERVER');
 
     select_serial_terminal;
@@ -42,6 +41,8 @@ sub run {
 
     # Change node.startup to automatic
     my $iscsi_conf = "/var/lib/iscsi/nodes/$node_name/*/default";
+    assert_script_run "ls -l $iscsi_conf";
+    $iscsi_conf .= "/*/default";
     assert_script_run "ls -l $iscsi_conf";
     file_content_replace($iscsi_conf, 'node.startup = manual' => 'node.startup = automatic');
     record_info('iscsi startup', script_output("grep node.startup $iscsi_conf"));
