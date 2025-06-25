@@ -13,7 +13,7 @@ use serial_terminal 'select_serial_terminal';
 use lockapi;
 use hacluster;
 use utils qw(zypper_call);
-use version_utils qw(is_sle);
+use version_utils qw(is_sle has_selinux);
 use strict;
 use warnings;
 
@@ -24,7 +24,8 @@ sub run {
     my $instance_id = get_required_var('INSTANCE_ID');
     my $sid = get_required_var('INSTANCE_SID');
     my $hostname = get_var('INSTANCE_ALIAS', '$(hostname)');
-    my $params_file = "/sapinst/$instance_type.params";
+    my $sapinst = '/usr/sap/sapinst';
+    my $params_file = "$sapinst/$instance_type.params";
     # set timeout as 1800 as workaround for slow nfs
     my $timeout = bmwqemu::scale_timeout(1800);    # Time out for NetWeaver's sources related commands
     my $product_id = undef;
@@ -52,23 +53,25 @@ sub run {
     $self->prepare_profile('NETWEAVER');
 
     # Mount media
-    $self->mount_media($proto, $path, '/sapinst');
+    $self->mount_media($proto, $path, $sapinst);
 
-    # SLES 16 provides a libnsl1-stub package for older workloads which require libnsl1
-    # Current versions of NetWeaver require libnsl1, so install this stub library too
-    # see https://susedoc.github.io/release-notes/slesap-16.0/html/release-notes/index.html#jsc-DOCTEAM-1849
-    zypper_call 'in libnsl-stub1' if is_sle('16+');
+    if (is_sle('16+')) {
+        # SLES 16 provides a libnsl1-stub package for older workloads which require libnsl1
+        # Current versions of NetWeaver require libnsl1, so install this stub library too
+        # see https://susedoc.github.io/release-notes/slesap-16.0/html/release-notes/index.html#jsc-DOCTEAM-1849
+        zypper_call 'in libnsl-stub1';
 
-    # Workaround for SLE16 for bsc#1236372
-    if (get_var("WORKAROUND_BSC1236372")) {
-        record_soft_failure("bsc#1236372: workaround by creating a soft link for /etc/services");
-        assert_script_run "ln -s /usr/etc/services /etc/services";
-    }
+        # Workaround for SLE16 for bsc#1236372
+        if (get_var("WORKAROUND_BSC1236372")) {
+            record_soft_failure("bsc#1236372: workaround by creating a soft link for /etc/services");
+            assert_script_run "ln -s /usr/etc/services /etc/services";
+        }
 
-    # Modify SELinux mode
-    if (get_var("WORKAROUND_BSC1239148")) {
-        record_soft_failure("bsc#1239148: workaround by changing mode to Permissive");
-        $self->modify_selinux_setenforce('selinux_mode' => 'Permissive');
+        # Modify SELinux mode
+        if (get_var("WORKAROUND_BSC1239148")) {
+            record_soft_failure("bsc#1239148: workaround by changing mode to Permissive");
+            $self->modify_selinux_setenforce('selinux_mode' => 'Permissive');
+        }
     }
 
     # Define a valid hostname/IP address in /etc/hosts, but not in HA
@@ -79,26 +82,33 @@ sub run {
     assert_script_run "sed -i -e \"s/%HOSTNAME%/$hostname/g\" -e 's/%INSTANCE_ID%/$instance_id/g' -e 's/%INSTANCE_SID%/$sid/g' $params_file";
 
     # Create an appropiate start_dir.cd file and an unattended installation directory
-    my $cmd = 'cd /sapinst ; ls -1 | grep -xv patch | while read d; do if [ -d "$d" -a ! -h "$d" ]; then echo $d; fi ; done | sed -e "s@^@/sapinst/@" ; cd -';
-    assert_script_run 'mkdir -p /sapinst/unattended';
-    assert_script_run "($cmd) > /sapinst/unattended/start_dir.cd";
+    my $cmd = "cd $sapinst" . ' ; ls -1 | grep -xv patch | while read d; do if [ -d "$d" -a ! -h "$d" ]; then echo $d; fi ; done | sed -e "s@^@$' . $sapinst . '/@" ; cd -';
+
+    assert_script_run 'mkdir -p $sapinst/unattended';
+    assert_script_run "($cmd) > $sapinst/unattended/start_dir.cd";
     script_run 'cd -';
 
     # Create sapinst group
     assert_script_run "groupadd sapinst";
-    assert_script_run "chgrp -R sapinst /sapinst/unattended";
+    assert_script_run "chgrp -R sapinst $sapinst/unattended";
 
     # setting permissions as per sapnote 2589600
-    assert_script_run "chmod -Rv 0775 /sapinst/unattended";
+    assert_script_run "chmod -Rv 0775 $sapinst/unattended";
 
     # Start the installation
-    enter_cmd "cd /sapinst/unattended";
+    enter_cmd "cd $sapinst/unattended";
     $cmd = '../SWPM/sapinst ' . join(' ', @sapoptions) . " | tee sapinst_$instance_type.log";
 
     # Synchronize with other nodes
     if (get_var('HA_CLUSTER') && !is_node(1)) {
         my $cluster_name = get_cluster_name;
         barrier_wait("ASCS_INSTALLED_$cluster_name");
+    }
+
+    # The NetWeaver assets need to be labeled before they are executed, or SELinux will deny them.
+    if (has_selinux) {
+        assert_script_run('test -d /.snapshots && restorecon -R / -e /.snapshots', timeout => 600);
+        assert_script_run('test -d /.snapshots || restorecon -R /', timeout => 600);
     }
 
     validate_script_output(
