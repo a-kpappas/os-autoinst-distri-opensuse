@@ -1,4 +1,6 @@
 # Copyright 2015-2018 SUSE Linux GmbH
+
+
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # Summary: Main purpose not allow support server to go down
@@ -19,8 +21,6 @@ sub run {
     my $self = shift;
 
     select_console 'root-console';
-    # We don't need any logs from support server when running on REMOTE_CONTROLLER for remote SLE installation tests
-    enter_cmd("journalctl -f -o short-monotonic |tee /dev/$serialdev") unless (get_var('REMOTE_CONTROLLER'));
 
     if (check_var("REMOTE_CONTROLLER", "ssh") || check_var("REMOTE_CONTROLLER", "vnc")) {
         mutex_create("installation_done");
