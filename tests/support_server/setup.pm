@@ -242,7 +242,7 @@ sub setup_dhcp_server {
     return if $dhcp_server_set;
     my $net_conf = parse_network_configuration();
 
-    $setup_script .= "if systemctl is-active --quiet dhcpd; then systemctl stop dhcpd\n";
+    $setup_script .= "if systemctl is-active --quiet dhcpd; then systemctl stop dhcpd; fi\n";
     if (get_var('SUPPORT_SERVER_DHPCD_CONFIG')) {
         $setup_script .= "curl -f -v " . autoinst_url . "/data" . get_var('SUPPORT_SERVER_DHPCD_CONFIG') . " >/etc/dhcpd.conf \n";
     }
@@ -581,7 +581,7 @@ sub run {
     }
 
 
-    zypper_call("in bind ntp yast2-iscsi-lio-server");
+    zypper_call("in bind ntp yast2-iscsi-lio-server dhcp-server");
 
     if (exists $server_roles{pxe}) {
         # PXE server cannot be configured on other ARCH than x86_64
