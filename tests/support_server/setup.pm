@@ -580,6 +580,9 @@ sub run {
         barrier_wait 'HOSTNAMES_CONFIGURED';
     }
 
+
+    zypper_call("in bind ntp yast2-iscsi-lio-server");
+
     if (exists $server_roles{pxe}) {
         # PXE server cannot be configured on other ARCH than x86_64
         # because 'syslinux' package only exists on it
