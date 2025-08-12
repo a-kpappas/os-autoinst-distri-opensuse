@@ -47,6 +47,8 @@ sub run {
 
     select_serial_terminal;
 
+    zypper_call("search libicu");
+    zypper_call("in libicu");
     # This installs Netweaver's ASCS. Start by making sure the correct
     # SAP profile and solution are configured in the system
     $self->prepare_profile('NETWEAVER');
