@@ -39,7 +39,7 @@ use iscsi;
 use y2_module_basetest;
 use version_utils qw(is_opensuse check_os_release);
 use virt_autotest::utils qw(is_vmware_virtualization is_hyperv_virtualization);
-use serial_terminal qw(select_serial_terminal);
+use serial_terminal qw(select_serial_terminal select_text_console);
 
 my $pxe_server_set = 0;
 my $http_server_set = 0;
@@ -649,10 +649,9 @@ sub setup_nfs_server {
 }
 
 sub run {
-
     #Choose console explicitly
     # TODO: Use serial console for the complete test.
-    select_console('root-console');
+    select_text_console;
 
     # Persist DHCP configuration for VMware & HyperV virtualisation smoke tests
     unless (is_vmware_virtualization || is_hyperv_virtualization) {
