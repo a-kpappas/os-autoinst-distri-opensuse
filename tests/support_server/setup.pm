@@ -644,6 +644,10 @@ sub setup_nfs_server {
 
 sub run {
 
+    #Choose console explicitly
+    # TODO: Use serial console for the complete test.
+    select_console('root-console');
+
     # Persist DHCP configuration for VMware & HyperV virtualisation smoke tests
     unless (is_vmware_virtualization || is_hyperv_virtualization) {
         configure_static_network('10.0.2.1/24');
@@ -785,6 +789,11 @@ sub run {
 sub pre_run_hook {
     my ($self) = @_;
 
+    # Disable GNOME screen saver and suspend
+    turnoff_gnome_screensaver_and_suspend if check_var('DESKTOP', 'gnome');
+
+    select_serial_terminal;
+
     # The old pre_run_hook ran three checks as separate console round-trips;
     # combined into one command (script_output cannot be used here because
     # the network is not up yet):
@@ -798,8 +807,6 @@ sub pre_run_hook {
       . q{sed -i -e '/^# repo_gpgcheck =/ i gpgcheck = off' /etc/zypp/zypp.conf};
     assert_script_run($named_conf_fix);
 
-    # Disable GNOME screen saver and suspend
-    turnoff_gnome_screensaver_and_suspend if check_var('DESKTOP', 'gnome');
 
     $self->SUPER::pre_run_hook;
 }
