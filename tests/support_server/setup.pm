@@ -39,6 +39,7 @@ use iscsi;
 use y2_module_basetest;
 use version_utils qw(is_opensuse check_os_release);
 use virt_autotest::utils qw(is_vmware_virtualization is_hyperv_virtualization);
+use serial_terminal qw(select_serial_terminal);
 
 my $pxe_server_set = 0;
 my $http_server_set = 0;
@@ -200,6 +201,8 @@ sub setup_networks {
 
 sub setup_dns_server {
     return if $dns_server_set;
+    my $prev_console = current_console();
+    select_serial_terminal;
     my $setup_script;
     my $named_url = autoinst_url . '/data/supportserver/named';
     $setup_script .= qq@
@@ -241,6 +244,7 @@ sub setup_dns_server {
     record_info('DNS status', script_output('systemctl is-active named'));
 
     $dns_server_set = 1;
+    select_console($prev_console);
 }
 
 sub dhcpd_conf_generation {
@@ -310,6 +314,8 @@ sub dhcpd_conf_generation {
 sub setup_dhcp_server {
     my ($dns, $pxe, $mtu) = @_;
     return if $dhcp_server_set;
+    my $prev_console = current_console();
+    select_serial_terminal;
     my $setup_script;
     my $net_conf = parse_network_configuration();
 
@@ -334,10 +340,13 @@ sub setup_dhcp_server {
     record_info('DHCP server', script_output($setup_script, 300));
     systemctl('start dhcpd');
     $dhcp_server_set = 1;
+    select_console($prev_console);
 }
 
 sub setup_ssh_server {
     return if $ssh_server_set;
+    my $prev_console = current_console();
+    select_serial_terminal;
     record_info 'SSH server setup';
     if (is_firewall_active()) {
         if (is_os_release('12')) {
@@ -351,10 +360,13 @@ sub setup_ssh_server {
     record_info('SSHD status', script_output('systemctl is-active sshd'));
 
     $ssh_server_set = 1;
+    select_console($prev_console);
 }
 
 sub setup_ntp_server {
     return if $ntp_server_set;
+    my $prev_console = current_console();
+    select_serial_terminal;
     record_info 'NTP setup';
     if (is_os_release('12')) {
         assert_script_run('yast2 firewall services add zone=EXT service=service:ntp', timeout => 200) if is_firewall_active();
@@ -368,6 +380,7 @@ sub setup_ntp_server {
     }
 
     $ntp_server_set = 1;
+    select_console($prev_console);
 }
 
 sub setup_xvnc_server {
@@ -426,6 +439,8 @@ sub setup_xdmcp_server {
 sub setup_iscsi_lio_server {
     # Setup of the iSCSI LIO server by 'targercli' from lib/iscsi.pm
     return if $iscsi_lio_server_set;
+    my $prev_console = current_console();
+    select_serial_terminal;
     record_info 'iSCSI LIO server setup';
     # Get the iSCSI server settings
     my $iscsi_iqn = get_var('ISCSI_IQN', 'iqn.2016-02.de.openqa');
@@ -489,12 +504,15 @@ sub setup_iscsi_lio_server {
     record_info('iSCSI targets', lio_show_target);
 
     $iscsi_lio_server_set = 1;
+    select_console($prev_console);
 }
 
 sub setup_iscsi_tgt_server {
     # Setup of the iSCSI server by 'tgtadm' from lib/iscsi.pm
     # Support multipath iSCSI setup if ISCSI_MULTIPATH is set
     return if $iscsi_tgt_server_set;
+    my $prev_console = current_console();
+    select_serial_terminal;
     record_info 'iSCSI TGT server setup';
 
     systemctl 'start tgtd';
@@ -527,6 +545,7 @@ sub setup_iscsi_tgt_server {
     # Show details about configured iSCSI server
     tgt_show;
     $iscsi_tgt_server_set = 1;
+    select_console($prev_console);
 }
 
 sub setup_aytests {
