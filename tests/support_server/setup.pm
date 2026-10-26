@@ -159,6 +159,8 @@ sub setup_tftp_server {
 
 sub setup_networks {
     my ($mtu) = @_;
+    my $prev_console = current_console();
+    select_serial_terminal;
     my $net_conf = parse_network_configuration();
     my $setup_script;
 
@@ -197,6 +199,7 @@ sub setup_networks {
 
     bmwqemu::log_call(setup_script => $setup_script);
     record_info('Forward setup', script_output($setup_script, 300));
+    select_console($prev_console);
 }
 
 sub setup_dns_server {
