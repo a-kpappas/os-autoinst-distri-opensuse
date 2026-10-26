@@ -94,8 +94,11 @@ sub firewall_cmd_apply {
 
 
 sub chk_req_pkgs {
+    my $prev_console = current_console();
+    select_serial_terminal;
     # Install provided list of required packages if any of them is not present on the system
     zypper_install_available(@_) if script_run('rpm -q --quiet ' . join(' ', @_));
+    select_console($prev_console);
 }
 
 sub turnoff_gnome_screensaver_and_suspend {
